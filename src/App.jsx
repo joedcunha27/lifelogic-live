@@ -245,6 +245,19 @@ function FFSummary({ff}){
   );
 }
 
+// Renders text preserving newlines
+function ScriptText({text,style}){
+  if(!text)return null;
+  const lines=text.split("\n");
+  return(
+    <div style={style}>
+      {lines.map((line,i)=>(
+        <span key={i}>{line}{i<lines.length-1&&<br/>}</span>
+      ))}
+    </div>
+  );
+}
+
 // ── INLINE INPUT GROUP ────────────────────────────────────────────────────────
 function InlineInputs({inputs,values,onChange}){
   return(
@@ -315,7 +328,7 @@ function StepControls({step,ff,onAnswer,onInputNext}){
           {activeFollowUp.script&&(
             <div style={{...S.sBox,marginBottom:12,background:"rgba(245,158,11,0.04)"}}>
               <div style={S.sLbl}>SAY THIS</div>
-              <div style={{...S.sTxt,fontSize:15}}>{activeFollowUp.script}</div>
+              <ScriptText text={activeFollowUp.script} style={{...S.sTxt,fontSize:15}} />
             </div>
           )}
           {!activeFollowUp.script&&<div style={S.followUpL}>Additional details</div>}
@@ -775,8 +788,8 @@ export default function App(){
               {step&&<><div style={S.pill}>{step.section}</div>
                 <div style={S.sBox}>
                   <div style={S.sLbl}>SAY THIS</div>
-                  <div style={S.sTxt}>{enrichScript(step.script)}</div>
-                  {step.subScript&&<div style={S.sSub}>{enrichScript(step.subScript)}</div>}
+                  <ScriptText text={enrichScript(step.script)} style={S.sTxt} />
+                  {step.subScript&&<ScriptText text={enrichScript(step.subScript)} style={S.sSub} />}
                 </div></>}
               {step&&!result&&!loading&&<StepControls step={step} ff={ff} onAnswer={onAnswer} onInputNext={onInputNext}/>}
               {loading&&<div style={S.spin}><span style={{animation:"spin 1s linear infinite",display:"inline-block",color:A,fontSize:20}}>◌</span> Generating advice report…</div>}
