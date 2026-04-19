@@ -349,14 +349,36 @@ function rulesToString(rules) {
 }
 
 // Known FF keys for dropdown
-const FF_KEYS = ["marital","empType","housing","hasKids","healthFlag","sickPayType","sickPayDuration","savingsLevel","benefitConfirm","partnerContrib","deferredConfirm","lifeNeed","hasLife","lifeUpsell","affordability","quotePreference"];
+const FF_KEYS = [
+  { key:"marital",          label:"Marital status (Single / Partner / Spouse)" },
+  { key:"empType",          label:"Employment type (Employed / Self-employed…)" },
+  { key:"housing",          label:"Housing (Mortgage / Renting…)" },
+  { key:"hasKids",          label:"Has children (No children / Yes — 1…)" },
+  { key:"healthFlag",       label:"Health flag (No — all clear / Yes — minor…)" },
+  { key:"sickPayType",      label:"Sick pay type (Yes — full pay / No sick pay…)" },
+  { key:"sickPayDuration",  label:"Sick pay duration (1 month / 3 months…)" },
+  { key:"savingsLevel",     label:"Savings level (No / very little / 3+ months…)" },
+  { key:"benefitConfirm",   label:"Benefit amount confirmed (Yes / No)" },
+  { key:"partnerContrib",   label:"Partner contributes to bills (Yes / No)" },
+  { key:"deferredConfirm",  label:"Deferred period agreed (Yes / prefer shorter…)" },
+  { key:"lifeNeed",         label:"Life cover need (They'd struggle / Fine)" },
+  { key:"hasLife",          label:"Has existing life insurance (Yes / No)" },
+  { key:"lifeUpsell",       label:"Life upsell response (Yes show me / No thanks)" },
+  { key:"affordability",    label:"Affordability (Yes comfortable / Too much)" },
+  { key:"quotePreference",  label:"Quote preference (Both / Full term / 2-year)" },
+];
 
 function NextStepBuilder({ step, allSteps, update }) {
   const stepIds = allSteps.map(s=>s.id);
   const [rules, setRules] = useState(()=>parseRules(step.next));
+  const stepIdRef = step.id;
 
-  // Sync when step changes
-  useState(()=>{ setRules(parseRules(step.next)); });
+  // Resync rules when step changes
+  const [lastStepId, setLastStepId] = useState(step.id);
+  if (step.id !== lastStepId) {
+    setLastStepId(step.id);
+    setRules(parseRules(step.next));
+  }
 
   function updateRules(newRules) {
     setRules(newRules);
@@ -364,21 +386,37 @@ function NextStepBuilder({ step, allSteps, update }) {
   }
 
   function updateRule(i, field, val) {
-    const r = [...rules];
-    r[i] = { ...r[i], [field]:val };
-    updateRules(r);
+    setRules(prev => {
+      const r = prev.map((rule,idx) => idx===i ? {...rule,[field]:val} : rule);
+      update("next", rulesToString(r));
+      return r;
+    });
   }
 
   function addRule(type) {
-    updateRules([...rules, type==="else"
-      ? { type:"else", dest:"null" }
-      : type==="if_option"
-        ? { type:"if_option", optionIndex:0, dest:"null" }
-        : { type:"if_ff", ffKey:"marital", ffVal:"", dest:"null" }
-    ]);
+    setRules(prev => {
+      const newRule = type==="else"
+        ? { type:"else", dest:"null" }
+        : type==="if_option"
+          ? { type:"if_option", optionIndex:0, dest:"null" }
+          : type==="if_ff_not"
+            ? { type:"if_ff_not", ffKey:"marital", ffVal:"", dest:"null" }
+            : type==="always"
+              ? { type:"always", dest:"null" }
+              : { type:"if_ff", ffKey:"marital", ffVal:"", dest:"null" };
+      const r = [...prev, newRule];
+      update("next", rulesToString(r));
+      return r;
+    });
   }
 
-  function removeRule(i) { updateRules(rules.filter((_,idx)=>idx!==i)); }
+  function removeRule(i) {
+    setRules(prev => {
+      const r = prev.filter((_,idx)=>idx!==i);
+      update("next", rulesToString(r));
+      return r;
+    });
+  }
 
   const ruleTypeLabels = { always:"Always go to", else:"Otherwise go to", if_option:"If customer picks option", if_ff:"If fact-find field equals", if_ff_not:"If fact-find field does NOT equal" };
   const ruleColors = { always:EMERALD, else:TEXTD, if_option:A, if_ff:BLUE, if_ff_not:ROSE };
@@ -390,10 +428,13 @@ function NextStepBuilder({ step, allSteps, update }) {
   function onDragOver(e, i) { e.preventDefault(); setDragOverIdx(i); }
   function onDrop(i) {
     if (dragIdx === null || dragIdx === i) { setDragIdx(null); setDragOverIdx(null); return; }
-    const r = [...rules];
-    const [moved] = r.splice(dragIdx, 1);
-    r.splice(i, 0, moved);
-    updateRules(r);
+    setRules(prev => {
+      const r = [...prev];
+      const [moved] = r.splice(dragIdx, 1);
+      r.splice(i, 0, moved);
+      update("next", rulesToString(r));
+      return r;
+    });
     setDragIdx(null);
     setDragOverIdx(null);
   }
@@ -453,7 +494,7 @@ function NextStepBuilder({ step, allSteps, update }) {
               <div>
                 <label style={S.edLbl}>Fact-find field</label>
                 <select style={S.edSel} value={rule.ffKey||""} onChange={e=>updateRule(i,"ffKey",e.target.value)}>
-                  {FF_KEYS.map(k=><option key={k}>{k}</option>)}
+                  {FF_KEYS.map(({key,label})=><option key={key} value={key}>{label}</option>)}
                 </select>
               </div>
               <div>
