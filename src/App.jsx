@@ -32,9 +32,9 @@ const DEFAULT_STEPS = [
     next:"ALWAYS:kids" },
   { id:"kids", section:"Situation", script:"Do you have any dependent children?", type:"tap", options:["No children","Yes — 1","Yes — 2","Yes — 3 or more"], ffKey:"hasKids", note:"",
     followUps:[
-      { optionIndex:1, inputs:[{key:"kidsAges",label:"Ages (comma separated)",placeholder:"e.g. 7"}] },
-      { optionIndex:2, inputs:[{key:"kidsAges",label:"Ages (comma separated)",placeholder:"e.g. 4, 7"}] },
-      { optionIndex:3, inputs:[{key:"kidsAges",label:"Ages (comma separated)",placeholder:"e.g. 4, 7, 11"}] },
+      { optionIndex:1, script:"How old are they?", inputs:[{key:"kidAge1",label:"Child 1 — Age",placeholder:"e.g. 7",inputType:"number"}] },
+      { optionIndex:2, script:"How old are they?", inputs:[{key:"kidAge1",label:"Child 1 — Age",placeholder:"e.g. 4",inputType:"number"},{key:"kidAge2",label:"Child 2 — Age",placeholder:"e.g. 7",inputType:"number"}] },
+      { optionIndex:3, script:"How old are they?", inputs:[{key:"kidAge1",label:"Child 1 — Age",placeholder:"e.g. 4",inputType:"number"},{key:"kidAge2",label:"Child 2 — Age",placeholder:"e.g. 7",inputType:"number"},{key:"kidAge3",label:"Child 3 — Age",placeholder:"e.g. 11",inputType:"number"}] },
     ],
     next:"ALWAYS:health" },
   { id:"health", section:"Situation", script:"Any medical conditions or health issues I should be aware of — anything your GP knows about?", type:"tap", options:["No — all clear","Yes — minor / managed","Yes — significant condition"], ffKey:"healthFlag", note:"",
@@ -117,6 +117,7 @@ function resolveNext(nextStr,selectedOption,step,ff){
 function buildPrompt(ff){
   const age=calcAge(ff.dob),spa=getSPA(ff.dob),pAge=calcAge(ff.partnerDob),pSpa=getSPA(ff.partnerDob);
   const hasP=ff.marital==="Partner / Spouse",hasMort=ff.housing==="Mortgage",hasKids=ff.hasKids&&ff.hasKids!=="No children";
+  const kidsAges=[ff.kidAge1,ff.kidAge2,ff.kidAge3].filter(Boolean).join(", ");
   const gross60=(parseFloat(ff.grossIncome)||0)*0.6/12,out=parseFloat(ff.totalOutgoings)||0,pInc=parseFloat(ff.partnerIncome)||0;
   const ipBen=hasP&&ff.partnerContrib==="Partner would contribute"?Math.min(Math.max(0,out-pInc),gross60):Math.min(out,gross60);
   const def=ff.sickPayDuration||(ff.savingsLevel==="3+ months worth"?"3 months":"1 month");
@@ -143,7 +144,7 @@ Outgoings: £${ff.totalOutgoings||0}/month | Housing: ${ff.housing||"unknown"}
 ${hasMort?`Mortgage: £${ff.mortgageBalance} outstanding, ${ff.mortgageTerm} yrs, £${ff.mortgagePayment}/month, ${ff.mortgageType}`:""}
 Sick pay: ${ff.sickPayType||"unknown"}${ff.sickPayDuration?` for ${ff.sickPayDuration}`:""}
 Savings: ${ff.savingsLevel||"unknown"} | Health: ${ff.healthDetail||ff.healthFlag||"Nothing disclosed"}
-Kids: ${hasKids?(ff.kidsAges||ff.hasKids):"None"}
+Kids: ${hasKids?(kidsAges||ff.hasKids):"None"}
 ${hasP?`PARTNER: ${ff.partnerFirstName||"Partner"} | DOB: ${ff.partnerDob||"unknown"} (Age: ${pAge??"unknown"}) | SPA: ${pSpa}
 Partner take-home: £${ff.partnerIncome||0}/month | Contributes if off work: ${ff.partnerContrib||"unknown"}`:"PARTNER: None"}
 CALCULATED IP BENEFIT: £${Math.round(ipBen)}/month | DEFERRED: ${def}
@@ -226,7 +227,7 @@ function FFSummary({ff}){
     {s:"Work & Income",items:[{k:"Occupation",v:ff.occupation},{k:"Employment",v:ff.empType},{k:"Gross",v:ff.grossIncome?`£${Number(ff.grossIncome).toLocaleString()}/yr`:null},{k:"Take-home",v:ff.takeHome?fmtM(ff.takeHome):null}]},
     {s:"Finances",items:[{k:"Housing",v:ff.housing},{k:"Outgoings",v:ff.totalOutgoings?fmtM(ff.totalOutgoings):null},{k:"Mortgage",v:ff.mortgageBalance?fmt(ff.mortgageBalance):null},{k:"Mrt. pmt",v:ff.mortgagePayment?fmtM(ff.mortgagePayment):null}]},
     {s:"Partner",items:[{k:"Name",v:ff.partnerFirstName},{k:"Income",v:ff.partnerIncome?fmtM(ff.partnerIncome):null},{k:"Contributes?",v:ff.partnerContrib}]},
-    {s:"Children",items:[{k:"Kids",v:ff.hasKids==="No children"?"None":ff.hasKids||null},{k:"Ages",v:ff.kidsAges}]},
+    {s:"Children",items:[{k:"Kids",v:ff.hasKids==="No children"?"None":ff.hasKids||null},{k:"Ages",v:[ff.kidAge1,ff.kidAge2,ff.kidAge3].filter(Boolean).join(", ")||null}]},
     {s:"Health",items:[{k:"Health",v:ff.healthFlag},{k:"Detail",v:ff.healthDetail}]},
     {s:"IP Details",items:[{k:"Sick pay",v:ff.sickPayType},{k:"Duration",v:ff.sickPayDuration},{k:"Savings",v:ff.savingsLevel},{k:"Deferred",v:ff.deferredConfirm}]},
     {s:"Life Cover",items:[{k:"Life need",v:ff.lifeNeed},{k:"Has life?",v:ff.hasLife},{k:"Provider",v:ff.lifeProvider},{k:"Upsell",v:ff.lifeUpsell}]},
