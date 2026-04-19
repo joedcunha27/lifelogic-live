@@ -383,16 +383,54 @@ function NextStepBuilder({ step, allSteps, update }) {
   const ruleTypeLabels = { always:"Always go to", else:"Otherwise go to", if_option:"If customer picks option", if_ff:"If fact-find field equals", if_ff_not:"If fact-find field does NOT equal" };
   const ruleColors = { always:EMERALD, else:TEXTD, if_option:A, if_ff:BLUE, if_ff_not:ROSE };
 
+  const [dragIdx, setDragIdx] = useState(null);
+  const [dragOverIdx, setDragOverIdx] = useState(null);
+
+  function onDragStart(i) { setDragIdx(i); }
+  function onDragOver(e, i) { e.preventDefault(); setDragOverIdx(i); }
+  function onDrop(i) {
+    if (dragIdx === null || dragIdx === i) { setDragIdx(null); setDragOverIdx(null); return; }
+    const r = [...rules];
+    const [moved] = r.splice(dragIdx, 1);
+    r.splice(i, 0, moved);
+    updateRules(r);
+    setDragIdx(null);
+    setDragOverIdx(null);
+  }
+
   return (
     <div>
       <p style={{fontSize:12,color:TEXTD,marginBottom:12,lineHeight:1.5}}>
-        Rules are checked top to bottom. First match wins. Add an <strong style={{color:TEXTD}}>"Otherwise"</strong> rule at the bottom as a fallback.
+        Rules are checked top to bottom. First match wins. Add an <strong style={{color:TEXTD}}>"Otherwise"</strong> rule at the bottom as a fallback. <span style={{color:A}}>Drag the ⠿ handle to reorder.</span>
       </p>
 
       {rules.map((rule, i) => (
-        <div key={i} style={{background:INNER,border:`1px solid ${ruleColors[rule.type]||BORDERL}22`,borderRadius:10,padding:"12px 14px",marginBottom:8}}>
+        <div
+          key={i}
+          draggable
+          onDragStart={()=>onDragStart(i)}
+          onDragOver={e=>onDragOver(e,i)}
+          onDrop={()=>onDrop(i)}
+          onDragEnd={()=>{setDragIdx(null);setDragOverIdx(null);}}
+          style={{
+            background:INNER,
+            border:`1px solid ${dragOverIdx===i?A:ruleColors[rule.type]||BORDERL}${dragOverIdx===i?"":"22"}`,
+            borderRadius:10,padding:"12px 14px",marginBottom:8,
+            opacity:dragIdx===i?0.4:1,
+            transform:dragOverIdx===i&&dragIdx!==i?"translateY(-2px)":"none",
+            transition:"transform 0.1s, opacity 0.1s, border-color 0.1s",
+            cursor:"default",
+          }}
+        >
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-            <span style={{fontSize:11,fontWeight:700,color:ruleColors[rule.type]||TEXTD,letterSpacing:"0.08em",textTransform:"uppercase"}}>{ruleTypeLabels[rule.type]}</span>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <span
+                draggable={false}
+                style={{fontSize:16,color:BORDERL,cursor:"grab",userSelect:"none",lineHeight:1,padding:"0 2px"}}
+                title="Drag to reorder"
+              >⠿</span>
+              <span style={{fontSize:11,fontWeight:700,color:ruleColors[rule.type]||TEXTD,letterSpacing:"0.08em",textTransform:"uppercase"}}>{ruleTypeLabels[rule.type]}</span>
+            </div>
             <button style={S.delBtn} onClick={()=>removeRule(i)}>✕</button>
           </div>
 
