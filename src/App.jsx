@@ -312,7 +312,13 @@ function StepControls({step,ff,onAnswer,onInputNext}){
       {/* Follow-up inputs for selected option */}
       {sel&&activeFollowUp&&(
         <div style={S.followUp}>
-          <div style={S.followUpL}>Additional details</div>
+          {activeFollowUp.script&&(
+            <div style={{...S.sBox,marginBottom:12,background:"rgba(245,158,11,0.04)"}}>
+              <div style={S.sLbl}>SAY THIS</div>
+              <div style={{...S.sTxt,fontSize:15}}>{activeFollowUp.script}</div>
+            </div>
+          )}
+          {!activeFollowUp.script&&<div style={S.followUpL}>Additional details</div>}
           <InlineInputs
             inputs={activeFollowUp.inputs}
             values={followUpInputs}
@@ -462,7 +468,8 @@ function NextStepBuilder({step,allSteps,update}){
 function FollowUpEditor({step,update}){
   function updateFollowUp(optIdx,inputs){
     const existing=(step.followUps||[]).filter(f=>f.optionIndex!==optIdx);
-    if(inputs.length>0)update("followUps",[...existing,{optionIndex:optIdx,inputs}]);
+    const current=(step.followUps||[]).find(f=>f.optionIndex===optIdx);
+    if(inputs.length>0)update("followUps",[...existing,{optionIndex:optIdx,script:current?.script||"",inputs}]);
     else update("followUps",existing);
   }
   function getFollowUp(optIdx){return(step.followUps||[]).find(f=>f.optionIndex===optIdx);}
@@ -490,6 +497,10 @@ function FollowUpEditor({step,update}){
         return(
           <div key={oi} style={{background:INNER,borderRadius:10,padding:"12px 14px",marginBottom:10,border:`1px solid ${BORDER}`}}>
             <div style={{fontSize:12,fontWeight:700,color:A,marginBottom:10}}>Option {oi+1}: "{opt}"</div>
+            <div style={S.iGroup}>
+              <label style={S.edLbl}>Script to say when this option is selected (optional)</label>
+              <textarea style={{...S.edTa,minHeight:56}} value={fu?.script||""} placeholder="e.g. Great — what's your partner's name and date of birth?" onChange={e=>{const existing=(step.followUps||[]).filter(f=>f.optionIndex!==oi);const inputs=fu?.inputs||[];update("followUps",[...existing,{optionIndex:oi,script:e.target.value,inputs}]);}} />
+            </div>
             {(fu?.inputs||[]).map((inp,i)=>(
               <div key={i} style={{background:CARD,borderRadius:8,padding:"10px 12px",marginBottom:8,border:`1px solid ${BORDERL}`}}>
                 <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
