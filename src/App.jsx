@@ -569,7 +569,11 @@ function Editor({steps,onSave,onReset}) {
               <p style={S.edH}>Basic Info</p>
               <div style={S.iGroup}>
                 <label style={S.edLbl}>Step ID</label>
-                <input style={S.edInp} value={step.id} onChange={e=>update("id",e.target.value)} />
+                <input style={S.edInp} value={step.id} onChange={e=>{
+                  const newId = e.target.value;
+                  setEdited(p=>p.map(s=>s.id===selId?{...s,id:newId}:s));
+                  setSelId(newId);
+                }} />
               </div>
               <div style={S.iGroup}>
                 <label style={S.edLbl}>Section</label>
