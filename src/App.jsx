@@ -307,6 +307,152 @@ function StepControls({step,ff,onAnswer,onInputNext}) {
   return null;
 }
 
+// ── NEXT STEP BUILDER ─────────────────────────────────────────────────────────
+// Parses the next string into visual rules and back
+function parseRules(nextStr) {
+  if (!nextStr) return [{ type:"always", dest:"null" }];
+  const parts = nextStr.split("|").map(p=>p.trim());
+  return parts.map(part => {
+    if (part.startsWith("ALWAYS:")) return { type:"always", dest:part.replace("ALWAYS:","") };
+    if (part.startsWith("ELSE:")) return { type:"else", dest:part.replace("ELSE:","") };
+    if (part.startsWith("IF:")) {
+      const body = part.replace("IF:","");
+      const firstColon = body.indexOf(":");
+      const condition = body.slice(0, firstColon);
+      const dest = body.slice(firstColon+1);
+      if (condition.startsWith("options[")) {
+        const idx = parseInt(condition.match(/\[(\d+)\]/)?.[1]??0);
+        return { type:"if_option", optionIndex:idx, dest };
+      }
+      if (condition.includes("!=")) {
+        const [key,val] = condition.split("!=");
+        return { type:"if_ff_not", ffKey:key.trim(), ffVal:val.trim(), dest };
+      }
+      if (condition.includes("=")) {
+        const [key,val] = condition.split("=");
+        return { type:"if_ff", ffKey:key.trim(), ffVal:val.trim(), dest };
+      }
+    }
+    return { type:"always", dest:"null" };
+  });
+}
+
+function rulesToString(rules) {
+  return rules.map(r => {
+    if (r.type==="always") return `ALWAYS:${r.dest||"null"}`;
+    if (r.type==="else") return `ELSE:${r.dest||"null"}`;
+    if (r.type==="if_option") return `IF:options[${r.optionIndex??0}]:${r.dest||"null"}`;
+    if (r.type==="if_ff") return `IF:${r.ffKey}=${r.ffVal}:${r.dest||"null"}`;
+    if (r.type==="if_ff_not") return `IF:${r.ffKey}!=${r.ffVal}:${r.dest||"null"}`;
+    return "";
+  }).filter(Boolean).join("|");
+}
+
+// Known FF keys for dropdown
+const FF_KEYS = ["marital","empType","housing","hasKids","healthFlag","sickPayType","sickPayDuration","savingsLevel","benefitConfirm","partnerContrib","deferredConfirm","lifeNeed","hasLife","lifeUpsell","affordability","quotePreference"];
+
+function NextStepBuilder({ step, allSteps, update }) {
+  const stepIds = allSteps.map(s=>s.id);
+  const [rules, setRules] = useState(()=>parseRules(step.next));
+
+  // Sync when step changes
+  useState(()=>{ setRules(parseRules(step.next)); });
+
+  function updateRules(newRules) {
+    setRules(newRules);
+    update("next", rulesToString(newRules));
+  }
+
+  function updateRule(i, field, val) {
+    const r = [...rules];
+    r[i] = { ...r[i], [field]:val };
+    updateRules(r);
+  }
+
+  function addRule(type) {
+    updateRules([...rules, type==="else"
+      ? { type:"else", dest:"null" }
+      : type==="if_option"
+        ? { type:"if_option", optionIndex:0, dest:"null" }
+        : { type:"if_ff", ffKey:"marital", ffVal:"", dest:"null" }
+    ]);
+  }
+
+  function removeRule(i) { updateRules(rules.filter((_,idx)=>idx!==i)); }
+
+  const ruleTypeLabels = { always:"Always go to", else:"Otherwise go to", if_option:"If customer picks option", if_ff:"If fact-find field equals", if_ff_not:"If fact-find field does NOT equal" };
+  const ruleColors = { always:EMERALD, else:TEXTD, if_option:A, if_ff:BLUE, if_ff_not:ROSE };
+
+  return (
+    <div>
+      <p style={{fontSize:12,color:TEXTD,marginBottom:12,lineHeight:1.5}}>
+        Rules are checked top to bottom. First match wins. Add an <strong style={{color:TEXTD}}>"Otherwise"</strong> rule at the bottom as a fallback.
+      </p>
+
+      {rules.map((rule, i) => (
+        <div key={i} style={{background:INNER,border:`1px solid ${ruleColors[rule.type]||BORDERL}22`,borderRadius:10,padding:"12px 14px",marginBottom:8}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+            <span style={{fontSize:11,fontWeight:700,color:ruleColors[rule.type]||TEXTD,letterSpacing:"0.08em",textTransform:"uppercase"}}>{ruleTypeLabels[rule.type]}</span>
+            <button style={S.delBtn} onClick={()=>removeRule(i)}>✕</button>
+          </div>
+
+          {/* If option — pick which option number */}
+          {rule.type==="if_option"&&(
+            <div style={{marginBottom:10}}>
+              <label style={S.edLbl}>Which option triggers this?</label>
+              <select style={S.edSel} value={rule.optionIndex??0} onChange={e=>updateRule(i,"optionIndex",parseInt(e.target.value))}>
+                {(step.options||[]).map((opt,idx)=>(
+                  <option key={idx} value={idx}>Option {idx+1}: "{opt}"</option>
+                ))}
+                {(step.options||[]).length===0&&<option value={0}>No options defined yet</option>}
+              </select>
+            </div>
+          )}
+
+          {/* If FF field */}
+          {(rule.type==="if_ff"||rule.type==="if_ff_not")&&(
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+              <div>
+                <label style={S.edLbl}>Fact-find field</label>
+                <select style={S.edSel} value={rule.ffKey||""} onChange={e=>updateRule(i,"ffKey",e.target.value)}>
+                  {FF_KEYS.map(k=><option key={k}>{k}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={S.edLbl}>{rule.type==="if_ff"?"Equals":"Does NOT equal"}</label>
+                <input style={S.edInp} value={rule.ffVal||""} placeholder="value to check" onChange={e=>updateRule(i,"ffVal",e.target.value)} />
+              </div>
+            </div>
+          )}
+
+          {/* Destination */}
+          <div>
+            <label style={S.edLbl}>Go to step</label>
+            <select style={{...S.edSel,borderColor:ruleColors[rule.type]+"40"}} value={rule.dest||"null"} onChange={e=>updateRule(i,"dest",e.target.value)}>
+              <option value="null">— End the call flow —</option>
+              {stepIds.map(id=><option key={id} value={id}>{id}</option>)}
+            </select>
+          </div>
+        </div>
+      ))}
+
+      {/* Add rule buttons */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginTop:4}}>
+        <button style={{...S.addBtn,fontSize:11}} onClick={()=>addRule("always")}>+ Always go to…</button>
+        <button style={{...S.addBtn,fontSize:11,borderColor:TEXTD+"50",color:TEXTD}} onClick={()=>addRule("else")}>+ Otherwise go to…</button>
+        <button style={{...S.addBtn,fontSize:11,borderColor:A+"50",color:A}} onClick={()=>addRule("if_option")}>+ If option selected…</button>
+        <button style={{...S.addBtn,fontSize:11,borderColor:BLUE+"50",color:BLUE}} onClick={()=>addRule("if_ff")}>+ If fact-find equals…</button>
+        <button style={{...S.addBtn,fontSize:11,borderColor:ROSE+"50",color:ROSE,gridColumn:"span 2"}} onClick={()=>addRule("if_ff_not")}>+ If fact-find does NOT equal…</button>
+      </div>
+
+      {/* Preview */}
+      <div style={{background:"rgba(0,0,0,0.2)",borderRadius:8,padding:"8px 12px",marginTop:12,fontSize:11,color:BORDERL,fontFamily:"monospace",wordBreak:"break-all"}}>
+        {rulesToString(rules)||"No rules defined"}
+      </div>
+    </div>
+  );
+}
+
 // ── EDITOR COMPONENT ──────────────────────────────────────────────────────────
 function Editor({steps,onSave,onReset}) {
   const [selId,setSelId]=useState(steps[0]?.id||null);
@@ -347,7 +493,10 @@ function Editor({steps,onSave,onReset}) {
       <div style={S.edLeft}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
           <p style={{fontSize:11,fontWeight:700,letterSpacing:"0.1em",textTransform:"uppercase",color:A,margin:0}}>Steps ({edited.length})</p>
-          <button style={S.resetBtn} onClick={()=>{if(window.confirm("Reset all steps to defaults?"))onReset();}}>Reset</button>
+          <div style={{display:"flex",gap:6}}>
+            <button style={{...S.saveBtn,fontSize:11,padding:"6px 10px"}} onClick={()=>{const newId=`step_${Date.now()}`;const newStep={id:newId,section:"Situation",script:"New step script",type:"tap",options:["Option 1","Option 2"],note:"",next:"ALWAYS:null"};setEdited(p=>[...p,newStep]);setSelId(newId);}}>+ Add</button>
+            <button style={S.resetBtn} onClick={()=>{if(window.confirm("Reset all steps to defaults?"))onReset();}}>Reset</button>
+          </div>
         </div>
         {edited.map((s,i)=>(
           <button key={s.id} style={S.edStepBtn(selId===s.id,s.type)} onClick={()=>setSelId(s.id)}>
@@ -371,7 +520,10 @@ function Editor({steps,onSave,onReset}) {
                 <h2 style={{fontSize:18,fontWeight:800,color:TEXT,margin:"0 0 2px 0"}}>{step.id}</h2>
                 <span style={S.badge(typeColor[step.type]||TEXTD)}>{step.type}</span>
               </div>
-              <button style={S.saveBtn} onClick={handleSave}>{saved?"✓ Saved!":"Save Changes"}</button>
+              <div style={{display:"flex",gap:8}}>
+                <button style={S.resetBtn} onClick={()=>{if(window.confirm(`Delete step "${step.id}"? This cannot be undone.`)){const remaining=edited.filter(s=>s.id!==selId);setEdited(remaining);setSelId(remaining[0]?.id||null);}}}>🗑 Delete Step</button>
+                <button style={S.saveBtn} onClick={handleSave}>{saved?"✓ Saved!":"Save Changes"}</button>
+              </div>
             </div>
 
             {/* Basic fields */}
@@ -455,22 +607,10 @@ function Editor({steps,onSave,onReset}) {
               </div>
             )}
 
-            {/* Next step logic */}
+            {/* Next step logic - visual builder */}
             <div style={S.edCard}>
               <p style={S.edH}>Next Step Logic</p>
-              <div style={S.iGroup}>
-                <label style={S.edLbl}>Next Step Rule</label>
-                <textarea style={{...S.edTa,minHeight:80,fontFamily:"monospace",fontSize:12}} value={step.next||""} onChange={e=>update("next",e.target.value)} />
-              </div>
-              <div style={{background:INNER,borderRadius:8,padding:"10px 12px",fontSize:12,color:TEXTD,lineHeight:1.7}}>
-                <strong style={{color:TEXTM}}>Syntax guide:</strong><br/>
-                <code style={{color:A}}>ALWAYS:stepId</code> — always go here<br/>
-                <code style={{color:A}}>IF:options[0]:stepId|ELSE:stepId</code> — if first option selected<br/>
-                <code style={{color:A}}>IF:ffKey=value:stepId|ELSE:stepId</code> — if FF field equals value<br/>
-                <code style={{color:A}}>IF:ffKey!=value:stepId|ELSE:stepId</code> — if FF field does NOT equal value<br/>
-                <code style={{color:A}}>IF:condition:step1|IF:condition2:step2|ELSE:step3</code> — multiple conditions<br/>
-                Use <code style={{color:A}}>null</code> as stepId to end the flow
-              </div>
+              <NextStepBuilder step={step} allSteps={edited} update={update} />
             </div>
           </>
         )}
