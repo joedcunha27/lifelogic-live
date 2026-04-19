@@ -277,7 +277,7 @@ export default function App() {
 
   const step = STEPS.find(s=>s.id===stepId);
   const secIdx = SECTIONS.indexOf(step?.section);
-  const pct = Math.min(100, Math.round((history.length/STEPS.length)*100));
+  const pct = step?.type === "generate" || result ? 100 : Math.round((secIdx / (SECTIONS.length - 1)) * 100);
 
   function go(nextId) { if (!nextId) return; setHistory(h=>[...h,nextId]); setStepId(nextId); }
 
