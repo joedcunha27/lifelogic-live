@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 
 const A = "#f59e0b";
@@ -123,7 +122,7 @@ ${ff.hasLife==="Yes"?`EXISTING LIFE: ${ff.lifeProvider||"unknown"}, £${ff.lifeC
 }
 
 const S = {
-  page:    { minHeight:"100vh", background:`radial-gradient(ellipse at 20% 0%, #1a1f35 0%, ${DARK} 60%)`, fontFamily:"'Plus Jakarta Sans', -apple-system, sans-serif", display:"flex", flexDirection:"column" },
+  page:    { height:"100vh", background:`radial-gradient(ellipse at 20% 0%, #1a1f35 0%, ${DARK} 60%)`, fontFamily:"'Plus Jakarta Sans', -apple-system, sans-serif", display:"flex", flexDirection:"column", overflow:"hidden" },
   header:  { padding:"14px 20px", borderBottom:`1px solid ${BORDER}`, display:"flex", alignItems:"center", gap:12, background:"rgba(10,15,30,0.9)", backdropFilter:"blur(10px)", position:"sticky", top:0, zIndex:100, flexShrink:0 },
   logoMark:{ width:34, height:34, background:`linear-gradient(135deg,${A},#d97706)`, borderRadius:9, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, fontWeight:900, color:DARK, flexShrink:0 },
   logoText:{ fontSize:17, fontWeight:800, color:TEXT, letterSpacing:"-0.5px" },
@@ -134,8 +133,8 @@ const S = {
   tabs:    { display:"flex", borderBottom:`1px solid ${BORDER}`, background:CARD, flexShrink:0 },
   tab:     (a)=>({ flex:1, padding:"10px 0", fontSize:12, fontWeight:700, background:"transparent", border:"none", cursor:"pointer", color:a?A:TEXTD, borderBottom:a?`2px solid ${A}`:"2px solid transparent", letterSpacing:"0.08em", textTransform:"uppercase" }),
   body:    { display:"flex", flex:1, overflow:"hidden", minHeight:0 },
-  left:    { flex:1, overflowY:"auto", padding:"20px 18px 120px" },
-  right:   { width:300, borderLeft:`1px solid ${BORDER}`, overflowY:"auto", padding:"18px 16px 80px", background:"rgba(10,15,30,0.5)", flexShrink:0 },
+  left:    { flex:1, overflowY:"auto", padding:"20px 18px 120px", minHeight:0 },
+  right:   { width:300, borderLeft:`1px solid ${BORDER}`, overflowY:"auto", padding:"18px 16px 80px", background:"rgba(10,15,30,0.5)", flexShrink:0, minHeight:0 },
   pill:    { fontSize:10, fontWeight:700, letterSpacing:"0.15em", textTransform:"uppercase", color:A, background:"rgba(245,158,11,0.1)", border:`1px solid rgba(245,158,11,0.2)`, borderRadius:20, padding:"4px 12px", display:"inline-block", marginBottom:12 },
   sBox:    { background:CARD, borderRadius:14, padding:"18px 20px", marginBottom:14, border:`1px solid ${BORDER}` },
   sLbl:    { fontSize:10, fontWeight:700, letterSpacing:"0.15em", textTransform:"uppercase", color:TEXTD, marginBottom:8 },
@@ -393,8 +392,8 @@ export default function App() {
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
         @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
         *{box-sizing:border-box;margin:0;padding:0}
-        body{background:${DARK};overflow:hidden}
-        html,body,#root{height:100%}
+        body{background:${DARK}}
+        html,body,#root{height:100%;overflow:hidden}
         select option{background:#1a2235;color:#f9fafb}
         input:focus,select:focus,textarea:focus{border-color:${A}!important;box-shadow:0 0 0 3px rgba(245,158,11,0.12)!important;outline:none}
         ::placeholder{color:#4b5563}
